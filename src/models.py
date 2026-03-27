@@ -1,4 +1,7 @@
-"""SQLAlchemy 2.0 ORM models for CCTV Intelligence Platform."""
+"""SQLAlchemy 2.0 ORM models for CCTV Intelligence Platform.
+
+Cross-platform: works with both PostgreSQL and SQLite.
+"""
 
 import uuid
 from datetime import datetime, timezone
@@ -13,8 +16,12 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+def _new_uuid() -> str:
+    """Generate a new UUID as a string (cross-platform)."""
+    return str(uuid.uuid4())
 
 
 class Base(DeclarativeBase):
@@ -25,8 +32,8 @@ class Base(DeclarativeBase):
 class Camera(Base):
     __tablename__ = "cameras"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=_new_uuid
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
     location: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -47,11 +54,11 @@ class Camera(Base):
 class Event(Base):
     __tablename__ = "events"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=_new_uuid
     )
-    camera_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+    camera_id: Mapped[str] = mapped_column(
+        String(36),
         ForeignKey("cameras.id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -66,9 +73,7 @@ class Event(Base):
     confidence: Mapped[float] = mapped_column(Float)
     caption: Mapped[str | None] = mapped_column(Text, nullable=True)
     clip_path: Mapped[str | None] = mapped_column(String, nullable=True)
-    qdrant_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    qdrant_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -84,11 +89,11 @@ class Event(Base):
 class SceneDiff(Base):
     __tablename__ = "scene_diffs"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=_new_uuid
     )
-    camera_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+    camera_id: Mapped[str] = mapped_column(
+        String(36),
         ForeignKey("cameras.id", ondelete="CASCADE"),
         nullable=False,
     )

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 
 from sqlalchemy import select
@@ -59,15 +58,13 @@ class HybridRetriever:
         # Add any Qdrant-only hits that weren't in SQL results
         for hit_id, q_score in qdrant_scores.items():
             if hit_id not in scored:
-                # Try to load from DB
                 try:
-                    uid = uuid.UUID(hit_id)
-                    stmt = select(Event).where(Event.id == uid)
+                    stmt = select(Event).where(Event.id == hit_id)
                     result = await session.execute(stmt)
                     event = result.scalar_one_or_none()
                     if event:
                         scored[hit_id] = (event, 0.5 * q_score)
-                except (ValueError, Exception):
+                except Exception:
                     pass
 
         # Sort by score descending, take top-limit
@@ -85,14 +82,7 @@ class HybridRetriever:
             stmt = stmt.where(Event.class_name.in_(parsed.class_filter))
 
         if parsed.camera_ids:
-            camera_uuids = []
-            for cid in parsed.camera_ids:
-                try:
-                    camera_uuids.append(uuid.UUID(cid))
-                except ValueError:
-                    pass
-            if camera_uuids:
-                stmt = stmt.where(Event.camera_id.in_(camera_uuids))
+            stmt = stmt.where(Event.camera_id.in_(parsed.camera_ids))
 
         if parsed.time_range:
             after = parsed.time_range.get("after")
@@ -115,14 +105,7 @@ class HybridRetriever:
             stmt = stmt.where(SceneDiff.object_label.in_(parsed.class_filter))
 
         if parsed.camera_ids:
-            camera_uuids = []
-            for cid in parsed.camera_ids:
-                try:
-                    camera_uuids.append(uuid.UUID(cid))
-                except ValueError:
-                    pass
-            if camera_uuids:
-                stmt = stmt.where(SceneDiff.camera_id.in_(camera_uuids))
+            stmt = stmt.where(SceneDiff.camera_id.in_(parsed.camera_ids))
 
         if parsed.time_range:
             after = parsed.time_range.get("after")

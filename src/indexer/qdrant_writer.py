@@ -23,9 +23,12 @@ class QdrantWriter:
     """Writes event embeddings to Qdrant and performs similarity search."""
 
     def __init__(self) -> None:
-        self._client = QdrantClient(
-            host=settings.qdrant_host, port=settings.qdrant_port
-        )
+        if settings.qdrant_path:
+            self._client = QdrantClient(path=settings.qdrant_path)
+        else:
+            self._client = QdrantClient(
+                host=settings.qdrant_host, port=settings.qdrant_port
+            )
 
     def ensure_collection(self) -> None:
         """Create the collection if it does not exist."""

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import uuid
+
 from datetime import datetime, timezone
 
 import structlog
@@ -18,7 +18,7 @@ from src.indexer.clip_embedder import CLIPEmbedder
 from src.indexer.event_writer import EventWriter
 from src.indexer.qdrant_writer import QdrantWriter
 from src.ingestor.frame_sampler import FrameSampler
-from src.models import Base, Event
+from src.models import Base, Camera, Event
 from src.scene_diff.baseline_manager import BaselineManager
 from src.scene_diff.diff_detector import DiffDetector
 from src.tracker.boxmot_tracker import BoxMOTTracker
@@ -79,6 +79,16 @@ class CCTVPipeline:
         # Ensure tables exist
         async with self._engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+
+        # Ensure camera row exists (for foreign key)
+        async with self._session_factory() as setup_session:
+            from sqlalchemy import select
+            stmt = select(Camera).where(Camera.id == self._camera_id)
+            result = await setup_session.execute(stmt)
+            if not result.scalar_one_or_none():
+                cam = Camera(id=self._camera_id, name=self._camera_name or self._camera_id)
+                setup_session.add(cam)
+                await setup_session.commit()
 
         async with self._session_factory() as session:
             for frame_num, ts_sec, frame in self._sampler:
@@ -154,7 +164,7 @@ class CCTVPipeline:
                     stmt = (
                         update(Event)
                         .where(Event.id == event.id)
-                        .values(qdrant_id=uuid.UUID(qdrant_point_id))
+                        .values(qdrant_id=qdrant_point_id)
                     )
                     await session.execute(stmt)
                     events_written += 1

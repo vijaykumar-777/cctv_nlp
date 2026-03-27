@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://cctv_user:changeme@localhost:5432/cctv_db"
     qdrant_host: str = "localhost"
     qdrant_port: int = 6333
+    qdrant_path: str | None = None  # Use for local storage if Docker is missing
     redis_url: str = "redis://localhost:6379/0"
     anthropic_api_key: str = "your_key_here"
     clips_dir: str = "./clips"
