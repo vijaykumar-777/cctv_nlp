@@ -33,7 +33,8 @@ async def get_clip(
     and persist the clip_path back to the database.
     """
     try:
-        uid = uuid.UUID(event_id)
+        uuid.UUID(event_id)
+        uid = event_id
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid event ID")
 
@@ -49,8 +50,9 @@ async def get_clip(
         return FileResponse(event.clip_path, media_type="video/mp4")
 
     # Extract clip on the fly
-    if not event.caption:
-        raise HTTPException(status_code=404, detail="No video source for clip extraction")
+    video_source = "videos/test.mp4"
+    if not os.path.exists(video_source):
+        raise HTTPException(status_code=404, detail="Source video not found for clip extraction")
 
     clips_dir = "./clips"
     os.makedirs(clips_dir, exist_ok=True)
@@ -61,7 +63,7 @@ async def get_clip(
 
     try:
         _clipper.extract(
-            video_path=event.caption,  # video_path stored contextually
+            video_path=video_source,
             timestamp_sec=timestamp_sec,
             output_path=output_path,
         )

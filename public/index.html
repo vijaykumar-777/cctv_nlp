@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCTV Intelligence Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --surface-color: rgba(255, 255, 255, 0.05);
+            --surface-border: rgba(255, 255, 255, 0.1);
+            --primary-accent: #00f2fe;
+            --secondary-accent: #4facfe;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-color);
+            background-image: radial-gradient(circle at 15% 50%, rgba(79, 172, 254, 0.15), transparent 25%),
+                              radial-gradient(circle at 85% 30%, rgba(0, 242, 254, 0.15), transparent 25%);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            padding: 40px 20px;
+            box-sizing: border-box;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        h1 {
+            font-weight: 800;
+            font-size: 3rem;
+            margin: 0;
+            background: linear-gradient(135deg, var(--secondary-accent) 0%, var(--primary-accent) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            margin-top: 10px;
+        }
+
+        .search-box {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            display: flex;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            border-radius: 50px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 20px 30px;
+            font-size: 1.1rem;
+            font-family: inherit;
+            border: 1px solid var(--surface-border);
+            border-radius: 50px 0 0 50px;
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+            outline: none;
+            backdrop-filter: blur(10px);
+            transition: border-color 0.3s, background 0.3s;
+        }
+
+        .search-box input:focus {
+            border-color: var(--secondary-accent);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .search-box button {
+            padding: 0 40px;
+            border: none;
+            border-radius: 0 50px 50px 0;
+            background: linear-gradient(135deg, var(--secondary-accent) 0%, var(--primary-accent) 100%);
+            color: #0b0f19;
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-family: inherit;
+        }
+
+        .search-box button:hover {
+            box-shadow: 0 0 20px rgba(79, 172, 254, 0.4);
+        }
+
+        .search-box button:active {
+            transform: scale(0.98);
+        }
+
+        .stats-area {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            min-height: 24px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 40px;
+        }
+
+        .card {
+            background: var(--surface-color);
+            border: 1px solid var(--surface-border);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(12px);
+            transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--secondary-accent), var(--primary-accent));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-color: rgba(255,255,255,0.2);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .badge {
+            background: rgba(0, 242, 254, 0.15);
+            color: var(--primary-accent);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .camera-id {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .camera-id::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #ef4444;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #ef4444;
+        }
+
+        .caption {
+            font-size: 1.1rem;
+            line-height: 1.5;
+            color: var(--text-main);
+            margin-bottom: 20px;
+            flex-grow: 1;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding-top: 15px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .confidence {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .confidence-bar {
+            width: 40px;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: var(--primary-accent);
+        }
+
+        /* Loading Spinner */
+        .loader {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary-accent);
+            animation: spin 1s ease-in-out infinite;
+            margin: 40px auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px;
+            color: var(--text-muted);
+            grid-column: 1 / -1;
+            background: rgba(255,255,255,0.02);
+            border-radius: 20px;
+            border: 1px dashed rgba(255,255,255,0.1);
+        }
+
+        .interpreted-query {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .tag {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .tag span {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Sentinel AI</h1>
+            <p class="subtitle">Natural Language CCTV Intelligence Platform</p>
+        </header>
+
+        <form class="search-box" id="searchForm">
+            <input type="text" id="searchInput" placeholder="Try 'find the red car' or 'when was the bag removed'" required autocomplete="off">
+            <button type="submit">Search</button>
+        </form>
+
+        <div class="stats-area" id="statsArea">
+            <div id="interpretedQuery" class="interpreted-query"></div>
+        </div>
+
+        <div class="loader" id="loader"></div>
+
+        <div class="grid" id="resultsGrid">
+            <!-- Results injected here -->
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('searchForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = document.getElementById('searchInput').value;
+            if (!query.trim()) return;
+
+            const grid = document.getElementById('resultsGrid');
+            const loader = document.getElementById('loader');
+            const stats = document.getElementById('statsArea');
+            const interpreted = document.getElementById('interpretedQuery');
+
+            grid.innerHTML = '';
+            interpreted.innerHTML = '';
+            loader.style.display = 'block';
+
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query, top_k: 12 })
+                });
+
+                const data = await response.json();
+                loader.style.display = 'none';
+
+                // Display parsed semantic context
+                const q = data.query_interpreted;
+                let tagsHtml = '';
+                if (q.class_filter && q.class_filter.length > 0) tagsHtml += `<div class="tag">Class: <span>${q.class_filter[0]}</span></div>`;
+                if (q.attribute_filters && q.attribute_filters.color) tagsHtml += `<div class="tag">Color: <span>${q.attribute_filters.color}</span></div>`;
+                if (q.event_type && q.event_type !== 'any') tagsHtml += `<div class="tag">Event: <span>${q.event_type}</span></div>`;
+                if (q.camera_ids && q.camera_ids.length > 0) tagsHtml += `<div class="tag">Camera: <span>${q.camera_ids[0]}</span></div>`;
+                tagsHtml += `<div class="tag">Found: <span>${data.total} results</span></div>`;
+                interpreted.innerHTML = tagsHtml;
+
+                if (data.results.length === 0) {
+                    grid.innerHTML = `<div class="empty-state"><h3>No results found</h3><p>Try refining your semantic search.</p></div>`;
+                    return;
+                }
+
+                data.results.forEach(item => {
+                    const date = new Date(item.timestamp_utc).toLocaleString();
+                    const confPct = Math.round(item.confidence * 100);
+                    
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <span class="badge">${item.class_name}</span>
+                            <span class="camera-id">${item.camera_id}</span>
+                        </div>
+                        <div class="caption">${item.caption || `${item.class_name} detected`}</div>
+                        ${item.clip_url ? `<video src="${item.clip_url}" controls preload="none" style="width: 100%; border-radius: 8px; margin-bottom: 15px; background: rgba(0,0,0,0.5);"></video>` : ''}
+                        <div class="card-footer">
+                            <div class="timestamp">${date}</div>
+                            <div class="confidence" title="Detection Confidence">
+                                <span>${confPct}%</span>
+                                <div class="confidence-bar">
+                                    <div class="confidence-fill" style="width: ${confPct}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+
+            } catch (err) {
+                loader.style.display = 'none';
+                grid.innerHTML = `<div class="empty-state"><h3>Error</h3><p>Could not connect to the API. Ensure the backend is running.</p></div>`;
+            }
+        });
+    </script>
+</body>
+</html>

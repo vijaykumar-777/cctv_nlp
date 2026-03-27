@@ -34,7 +34,7 @@ async def query_events(
     event_responses = []
     for obj, score in results:
         if isinstance(obj, Event):
-            clip_url = f"/clips/{obj.id}" if obj.clip_path else None
+            clip_url = f"/clips/{obj.id}"
             event_responses.append(
                 EventResponse(
                     event_id=str(obj.id),
@@ -61,7 +61,7 @@ async def query_events(
                     attributes={"event_type": obj.event_type},
                     confidence=1.0,
                     caption=f"{obj.object_label} {obj.event_type}",
-                    clip_url=f"/clips/{obj.id}" if obj.clip_path else None,
+                    clip_url=f"/clips/{obj.id}",
                     score=score,
                 )
             )

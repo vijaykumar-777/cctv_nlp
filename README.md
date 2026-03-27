@@ -1,180 +1,150 @@
-# CCTV Intelligence Platform
+# 👁️ Sentinel AI: CCTV Intelligence Platform
 
-An end-to-end surveillance intelligence system that processes video feeds using **Computer Vision** (YOLOv8 + ByteTrack) and **NLP** (OpenCLIP + Anthropic Claude) to enable natural-language forensic search over detected events.
+![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green.svg)
+![YOLO](https://img.shields.io/badge/YOLO-Ultralytics-orange.svg)
+![Qdrant](https://img.shields.io/badge/Vector_DB-Qdrant-red.svg)
 
-## Architecture
+**Sentinel AI** (CCTV Intelligence Platform) is an advanced, end-to-end local surveillance processing system. It automatically ingests video feeds, tracks objects, computes visual embeddings, and allows users to search historical footage using pure natural language (e.g., *"find the red car"* or *"when was the bag removed"*).
 
-```
-Video File → FrameSampler → YOLODetector → BoxMOTTracker → AttributeExtractor
-                                                              ↓
-                                                         EventBuilder
-                                                              ↓
-                                              ┌───────────────┼───────────────┐
-                                              ▼               ▼               ▼
-                                          PostgreSQL      Qdrant           Clips
-                                          (Events)      (Vectors)        (FFmpeg)
-                                              │               │
-                                              └───────┬───────┘
-                                                      ▼
-                                              HybridRetriever
-                                                      ↓
-                                              FastAPI /query
-```
+The entire stack is **local-first** and **offline-capable**, requiring entirely local databases (SQLite + Local file-based Qdrant) and zero cloud APIs for parsing or embedding.
 
-## Features
+---
 
-- **Object Detection** — YOLOv8m with 0.4 confidence threshold
-- **Multi-Object Tracking** — ByteTrack for persistent track IDs across frames
-- **Attribute Extraction** — Dominant color (10 colors) and relative size
-- **Scene Diff Detection** — IoU-based removal/theft alerts against registered baselines
-- **CLIP Embeddings** — ViT-B-32 image+text vectors for semantic similarity search
-- **Hybrid Retrieval** — SQL metadata filters + CLIP vector search, merged and ranked
-- **NLP Query Parsing** — Claude converts natural language to structured JSON filters
-- **Video Clipping** — On-demand FFmpeg clip extraction around event timestamps
+## ✨ Key Features
 
-## Setup
+- **Natural Language Querying:** Type complex semantic searches. A local SpaCy-based NLP pipeline parses object classes, colors, camera IDs, and time conditions.
+- **Object Detection & Tracking:** Leverages Ultralytics YOLO models combined with BoxMOT tracking to uniquely associate and follow entities across frames.
+- **Deep Visual Embeddings:** Uses OpenAI's `CLIP` model to convert visual crops of detected objects into dense semantic vectors for fuzzy semantic search.
+- **Scene Differencing (Theft Detection):** Automatically computes baselines and registers "Scene Diffs" to detect when objects are abruptly removed or left behind.
+- **Hybrid Retrieval System:** Combines precision SQL metadata filtering (timestamps, camera IDs, exact classes) with Qdrant Vector Semantic Search scoring.
+- **Modern Web Dashboard:** A sleek, dark-mode glassmorphism UI served directly alongside the API for immediate video interrogation.
+- **Automatic Clip Extraction:** Generates sub-clips via `FFmpeg` automatically whenever a specific event is played in the UI.
 
-### 1. Clone and create virtual environment
+---
 
-```bash
-git clone <your-repo-url> && cd cctv_intelligence
-python3.11 -m venv .venv && source .venv/bin/activate
-```
+## 🏗️ Architecture Stack
 
-### 2. Install dependencies (5 steps)
+* **Backend API:** FastAPI
+* **NLP Parser:** SpaCy (`en_core_web_sm`)
+* **Computer Vision:** OpenCV + Ultralytics YOLOv8 + BoxMOT (StrongSORT)
+* **Embedding Model:** Transformers (`openai/clip-vit-base-patch32`)
+* **Relational Database:** SQLite (via SQLAlchemy + aiosqlite) for metadata and track states.
+* **Vector Database:** Qdrant (Local disk mode) for storing CLIP embeddings.
+* **Frontend:** Vanilla HTML/CSS/JS (served via FastAPI StaticFiles).
 
-```bash
-# Step 1 — PyTorch (CPU)
-pip install torch==2.3.1 torchvision==0.18.1 --index-url https://download.pytorch.org/whl/cpu
+---
 
-# Step 2 — CV stack
-pip install numpy==1.26.4 Pillow==10.3.0 opencv-python-headless==4.9.0.80 ultralytics==8.2.100 boxmot==11.0.9 open_clip_torch==2.26.1
+## 🚀 Getting Started
 
-# Step 3 — API stack
-pip install fastapi==0.111.0 "uvicorn[standard]==0.30.1" sqlalchemy==2.0.30 asyncpg==0.29.0 alembic==1.13.1 "qdrant-client==1.9.1" redis==5.0.4 pydantic==2.7.1 pydantic-settings==2.3.0 aiosqlite==0.20.0
+### 1. Prerequisites
+Ensure you have the following installed on your system:
+- **Python 3.11+**
+- **FFmpeg** (For automated video clip extraction)
+  - *macOS*: `brew install ffmpeg`
+  - *Ubuntu*: `sudo apt install ffmpeg`
 
-# Step 4 — NLP stack
-pip install anthropic==0.28.0 sentence-transformers==3.0.1 transformers==4.41.2 tokenizers==0.19.1
-
-# Step 5 — Utilities
-pip install ffmpeg-python==0.2.0 structlog==24.1.0 python-dotenv==1.0.1 httpx==0.27.0 pytest==8.2.2 pytest-asyncio==0.23.7
-```
-
-### 3. Configure environment
+### 2. Installation
+Clone the repository and install dependencies into a virtual environment:
 
 ```bash
-cp .env.example .env
-# Edit .env and set your ANTHROPIC_API_KEY
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install requirements
+pip install -r requirements.txt
+
+# Download the local SpaCy English model for NLP
+python -m spacy download en_core_web_sm
 ```
 
-### 4. Start infrastructure
+### 3. Environment Variables
+Create a `.env` file in the root directory (the system falls back to these if not set):
+
+```env
+DATABASE_URL=sqlite+aiosqlite:///cctv.db
+QDRANT_PATH=./qdrant_storage
+# No cloud API keys required!
+```
+
+---
+
+## 💻 Usage
+
+### Step 1: Ingesting Video Data
+To process a video and build the database and vector index, use the pipeline script. Place your video in a `videos/` folder:
 
 ```bash
-docker-compose up -d
+# Inside the virtual environment
+python -c "
+import asyncio
+from src.pipeline import CCTVPipeline
+
+async def run():
+    pipe = CCTVPipeline(
+        video_path='videos/test.mp4',
+        camera_id='cam_01', 
+        camera_name='Main Entrance',
+        register_baseline=True # Enables theft/removal detection
+    )
+    await pipe.run()
+
+asyncio.run(run())
+"
 ```
+*Depending on the length of the video and your computer's resources, YOLO processing may take a few minutes.*
 
-This starts:
-- **PostgreSQL 16** on port 5432
-- **Qdrant v1.9.1** on port 6333
-- **Redis 7** on port 6379
-
-### 5. Run database migrations
-
-```bash
-alembic upgrade head
-```
-
-## Usage
-
-### Ingest a video
-
-```bash
-python scripts/ingest_video.py \
-  --video ./videos/parking.mp4 \
-  --camera-id cam_01 \
-  --camera-name "Parking North"
-```
-
-### Register a scene baseline (for theft/removal detection)
-
-```bash
-python scripts/ingest_video.py \
-  --video ./videos/lobby.mp4 \
-  --camera-id cam_02 \
-  --camera-name "Lobby" \
-  --register-baseline
-```
-
-### Start the API
+### Step 2: Running the Server
+Start the FastAPI application:
 
 ```bash
 uvicorn src.query_api.main:app --reload --port 8000
 ```
 
-### Example queries
+### Step 3: Accessing the Dashboard UI
+Open your browser and navigate to:
+**[http://localhost:8000/ui/](http://localhost:8000/ui/)**
+
+Try queries such as:
+- *"show me the person in red clothing"*
+- *"find all cars on cam_01"*
+- *"when was the bag removed"*
+- *"blue truck after 2pm"*
+
+---
+
+## 📂 Project Structure
+
+```text
+├── public/                 # Modern web UI (index.html, JS, CSS)
+├── src/                    # Core Python Source Code
+│   ├── annotator/          # Builds Event records and captions
+│   ├── clipper/            # FFmpeg sub-clip extraction
+│   ├── detector/           # YOLO Object detection & Color extractors
+│   ├── indexer/            # Qdrant vector DB & SQL DB writers
+│   ├── ingestor/           # Video frame sampling 
+│   ├── query_api/          # FastAPI Routes, SpaCy NLP, Hybrid Retriever
+│   ├── scene_diff/         # Background subtraction & removal detection
+│   └── tracker/            # BoxMOT object tracking
+├── tests/                  # Pytest automated test suite
+├── videos/                 # Target directory for raw video files
+├── cctv.db                 # Local SQLite database (Auto-generated)
+└── qdrant_storage/         # Local Qdrant vector storage (Auto-generated)
+```
+
+---
+
+## 🧪 Testing
+
+The platform includes comprehensive test coverage for routing, parsing, detection, and scene diffing:
 
 ```bash
-# Find a red car after 2pm
-curl -X POST http://localhost:8000/query \
-  -H "Content-Type: application/json" \
-  -d '{"query": "find the red car after 2pm", "top_k": 5}'
-
-# Scene change / removal query
-curl -X POST http://localhost:8000/query \
-  -H "Content-Type: application/json" \
-  -d '{"query": "when was the bag removed from the table", "top_k": 3}'
-
-# Health check
-curl http://localhost:8000/
+pytest tests/ -v
 ```
 
-## Project Structure
+---
 
-```
-├── src/
-│   ├── config.py                    # Pydantic settings singleton
-│   ├── models.py                    # SQLAlchemy ORM (Camera, Event, SceneDiff)
-│   ├── database.py                  # Async engine, session factory
-│   ├── pipeline.py                  # CCTVPipeline — end-to-end orchestrator
-│   ├── ingestor/
-│   │   ├── video_reader.py          # VideoReader (cv2 iterator)
-│   │   └── frame_sampler.py         # FrameSampler (target FPS decimation)
-│   ├── detector/
-│   │   ├── yolo_detector.py         # YOLODetector + Detection dataclass
-│   │   └── attribute_extractor.py   # Color + size extraction
-│   ├── tracker/
-│   │   └── boxmot_tracker.py        # BoxMOTTracker + Track dataclass
-│   ├── scene_diff/
-│   │   ├── baseline_manager.py      # BaselineManager (PNG + JSON storage)
-│   │   └── diff_detector.py         # DiffDetector (IoU-based removal)
-│   ├── annotator/
-│   │   └── event_builder.py         # EventBuilder + EventRecord dataclass
-│   ├── indexer/
-│   │   ├── clip_embedder.py         # CLIPEmbedder (ViT-B-32)
-│   │   ├── qdrant_writer.py         # QdrantWriter (upsert + search)
-│   │   └── event_writer.py          # EventWriter (async ORM persist)
-│   ├── clipper/
-│   │   └── ffmpeg_clipper.py        # FFmpegClipper (±5s clip extraction)
-│   └── query_api/
-│       ├── main.py                  # FastAPI app with lifespan
-│       ├── schemas.py               # Pydantic v2 request/response models
-│       ├── nlp/
-│       │   ├── query_parser.py      # QueryParser (Claude → JSON)
-│       │   └── retriever.py         # HybridRetriever (SQL + vector)
-│       └── routers/
-│           ├── query.py             # POST /query
-│           └── clips.py             # GET /clips/{id}, POST /scene-diff/register
-├── scripts/
-│   └── ingest_video.py              # CLI ingest script
-├── alembic/                         # Database migrations
-├── tests/                           # Test suite
-├── clips/                           # Generated video clips
-├── videos/                          # Source video files
-├── requirements.txt                 # Pinned dependencies
-├── docker-compose.yml               # Postgres + Qdrant + Redis
-└── .env.example                     # Environment template
-```
+## 📜 Notice
 
-## License
-
-MIT
+This software processes local video feeds offline. Ensure you have the right to process video surveillance footage following local privacy and surveillance laws before deployment.

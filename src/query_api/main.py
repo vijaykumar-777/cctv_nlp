@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from src.database import init_db
 from src.detector.yolo_detector import YOLODetector
@@ -62,6 +63,9 @@ app.add_middleware(
 app.include_router(query.router)
 app.include_router(clips.router)
 
+import os
+if os.path.exists("public"):
+    app.mount("/ui", StaticFiles(directory="public", html=True), name="ui")
 
 @app.get("/")
 async def root():
