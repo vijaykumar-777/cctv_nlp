@@ -14,7 +14,7 @@ from src.indexer.clip_embedder import CLIPEmbedder
 from src.indexer.qdrant_writer import QdrantWriter
 from src.query_api.nlp.query_parser import QueryParser
 from src.query_api.nlp.retriever import HybridRetriever
-from src.query_api.routers import clips, query
+from src.query_api.routers import clips, query, stream
 
 
 @asynccontextmanager
@@ -62,6 +62,7 @@ app.add_middleware(
 # Include routers
 app.include_router(query.router)
 app.include_router(clips.router)
+app.include_router(stream.router)
 
 import os
 if os.path.exists("public"):
