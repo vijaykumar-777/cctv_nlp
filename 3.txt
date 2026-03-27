@@ -1,0 +1,44 @@
+Implement the database layer for cctv_intelligence.
+All files go in src/. Write complete working code, no TODOs.
+
+
+1. src/models.py
+SQLAlchemy 2.0 ORM with these tables:
+
+
+Camera: id(UUID PK, default gen), name(String, not null),
+        location(String nullable), rtsp_url(String nullable),
+        created_at(DateTime with timezone, default utcnow)
+
+
+Event: id(UUID PK), camera_id(UUID FK→cameras.id, cascade delete),
+       track_id(BigInteger nullable), timestamp_utc(DateTime tz, indexed),
+       frame_number(BigInteger), class_name(String, indexed),
+       attributes(JSON), bbox(JSON), confidence(Float),
+       caption(Text nullable), clip_path(String nullable),
+       qdrant_id(UUID nullable), created_at(DateTime tz)
+       Index on (camera_id, timestamp_utc)
+
+
+SceneDiff: id(UUID PK), camera_id(UUID FK→cameras.id),
+           object_label(String), event_type(String),  # "removed"|"appeared"
+           timestamp_utc(DateTime tz, indexed), frame_number(BigInteger),
+           baseline_frame_path(String nullable),
+           diff_frame_path(String nullable), clip_path(String nullable)
+
+
+2. src/database.py
+create_async_engine from DATABASE_URL in settings.
+AsyncSession factory.
+async get_db() generator for FastAPI dependency injection.
+async init_db() that calls Base.metadata.create_all.
+
+
+3. Run alembic init alembic, configure alembic.ini to use DATABASE_URL,
+   configure alembic/env.py to use async engine and import Base from src.models.
+   Generate migration: alembic revision --autogenerate -m "initial"
+   Do NOT run alembic upgrade yet (DB not running).
+
+
+Verify by running:
+python -c "from src.models import Camera, Event, SceneDiff; from src.database import init_db; print('DB layer OK')"

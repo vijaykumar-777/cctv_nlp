@@ -1,0 +1,63 @@
+Implement vision modules for cctv_intelligence.
+All files complete — no stubs, no TODOs.
+
+
+1. src/ingestor/video_reader.py
+Class VideoReader(path: str):
+  __iter__: yields (frame_number: int, timestamp_sec: float, frame: np.ndarray)
+  Uses cv2.VideoCapture. Skip None frames silently.
+  Properties: fps, total_frames, width, height.
+  Context manager support (__enter__/__exit__ releases cap).
+
+
+2. src/ingestor/frame_sampler.py
+Class FrameSampler(video_path: str, target_fps: float = 2.0):
+  Wraps VideoReader. Skips frames to achieve target_fps.
+  __iter__: yields same tuple as VideoReader but decimated.
+
+
+3. src/detector/yolo_detector.py
+Dataclass Detection: bbox(list[float] [x1,y1,x2,y2]),
+  confidence(float), class_id(int), class_name(str)
+
+
+Class YOLODetector(model_path: str = settings.YOLO_MODEL):
+  Loads YOLO model once on init.
+  detect(frame: np.ndarray) -> list[Detection]
+  Use conf=0.4. device="cuda" if torch.cuda.is_available() else "cpu".
+  Convert results[0].boxes.data.cpu().numpy() rows to Detection objects.
+
+
+4. src/detector/attribute_extractor.py
+Class AttributeExtractor:
+  extract_color(frame: np.ndarray, bbox: list) -> str
+    Crop bbox from frame. Convert to HSV.
+    Mask out skin-tone range. Take dominant hue.
+    Map to: red/orange/yellow/green/blue/purple/white/black/silver/gray
+  extract_size(bbox: list, frame_shape: tuple) -> str
+    Area ratio vs frame: <2% → small, 2-15% → medium, >15% → large
+
+
+5. src/tracker/boxmot_tracker.py
+Dataclass Track: track_id(int), bbox(list[float]),
+  confidence(float), class_id(int), class_name(str)
+
+
+Class BoxMOTTracker:
+  Init ByteTrack from boxmot.
+  update(detections: list[Detection], frame: np.ndarray) -> list[Track]
+  Convert detections to np.array shape (N,6) [x1,y1,x2,y2,conf,cls].astype(np.float64)
+  If empty detections pass np.empty((0,6)).
+  Parse tracker output columns [x1,y1,x2,y2,id,conf,cls,idx] → Track list.
+
+
+Verify with:
+python -c "
+import numpy as np
+from src.detector.yolo_detector import YOLODetector, Detection
+from src.tracker.boxmot_tracker import BoxMOTTracker
+from src.detector.attribute_extractor import AttributeExtractor
+t = BoxMOTTracker()
+a = AttributeExtractor()
+print("Vision modules OK")
+"

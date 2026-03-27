@@ -1,0 +1,59 @@
+Implement scene diff and annotation modules for cctv_intelligence.
+
+
+1. src/scene_diff/baseline_manager.py
+Dataclass BaselineObject: label(str), bbox(list[float]), class_id(int)
+Dataclass BaselineState: camera_id(str), objects(list[BaselineObject]),
+  frame_path(str), registered_at(datetime)
+
+
+Class BaselineManager(baselines_dir: str = "./clips/baselines"):
+  register(camera_id, frame, detections: list[Detection]) -> BaselineState
+    Save frame as PNG to baselines_dir/{camera_id}_baseline.png
+    Save state as JSON to baselines_dir/{camera_id}_state.json
+  get(camera_id) -> BaselineState | None  (load from JSON if exists)
+  clear(camera_id) -> None
+
+
+2. src/scene_diff/diff_detector.py
+Dataclass SceneDiffEvent: camera_id(str), object_label(str),
+  event_type(str), timestamp_utc(datetime), frame_number(int),
+  baseline_frame_path(str), diff_frame_path(str | None)
+
+
+Class DiffDetector(baseline_manager: BaselineManager):
+  check(camera_id, frame, current_detections: list[Detection],
+        timestamp_utc: datetime, frame_number: int) -> list[SceneDiffEvent]
+  Logic:
+    Get baseline. If none, return [].
+    For each baseline object, check if any current detection overlaps it
+    (IoU > 0.3, same class_id). If not found → SceneDiffEvent(event_type="removed").
+    Save diff frame as PNG to clips/diffs/{camera_id}_{frame_number}.png.
+  Helper: _iou(box1, box2) -> float
+
+
+3. src/annotator/event_builder.py
+Dataclass EventRecord:
+  camera_id(str), track_id(int | None), timestamp_utc(datetime),
+  frame_number(int), class_name(str), attributes(dict),
+  bbox(dict), confidence(float), caption(str),
+  video_path(str), frame_crop(np.ndarray)
+
+
+Class EventBuilder:
+  build(camera_id, track: Track, attributes: dict,
+        timestamp_utc: datetime, frame_number: int,
+        frame: np.ndarray, video_path: str) -> EventRecord
+  _generate_caption(class_name, attributes, camera_id) -> str
+    Template: f"{attributes.get('color','')} {class_name} detected on {camera_id}"
+    For person: f"Person in {attributes.get('color','unknown')} clothing on {camera_id}"
+  _crop_frame(frame, bbox) -> np.ndarray  (clipped to frame bounds)
+
+
+Verify:
+python -c "
+from src.scene_diff.baseline_manager import BaselineManager
+from src.scene_diff.diff_detector import DiffDetector
+from src.annotator.event_builder import EventBuilder
+print("Scene diff + annotator OK")
+"

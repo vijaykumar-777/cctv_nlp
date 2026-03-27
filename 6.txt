@@ -1,0 +1,60 @@
+Implement the indexing layer for cctv_intelligence.
+
+
+1. src/indexer/clip_embedder.py
+Class CLIPEmbedder:
+  __init__: load open_clip.create_model_and_transforms(
+    settings.CLIP_MODEL_NAME, pretrained=settings.CLIP_PRETRAINED)
+  tokenizer = open_clip.get_tokenizer(settings.CLIP_MODEL_NAME)
+  device = "cuda" if available else "cpu". Move model to device.
+  embed_image(frame_crop: np.ndarray) -> np.ndarray
+    PIL.Image from crop → transform → model.encode_image → normalize → numpy float32
+  embed_text(text: str) -> np.ndarray
+    tokenize text → model.encode_text → normalize → numpy float32
+  Both methods: torch.no_grad(), return shape (512,)
+
+
+2. src/indexer/qdrant_writer.py
+COLLECTION = "cctv_events"
+VECTOR_SIZE = 512
+
+
+Class QdrantWriter:
+  __init__: QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
+  ensure_collection(): create collection if not exists,
+    VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE)
+  upsert(event_id: str, vector: np.ndarray, payload: dict) -> None
+    PointStruct(id=event_id, vector=vector.tolist(), payload=payload)
+  search(query_vector: np.ndarray, must_filters: list = None, top_k: int = 10)
+    -> list of (id, score, payload)
+    Use qdrant_client.models.Filter and FieldCondition for must_filters.
+
+
+3. src/indexer/event_writer.py
+Class EventWriter:
+  async write_event(session: AsyncSession, record: EventRecord,
+                    qdrant_id: str | None, clip_path: str | None) -> Event
+    Create Event ORM object, session.add, await session.flush(), return it.
+  async write_scene_diff(session, diff_event: SceneDiffEvent,
+                          clip_path: str | None) -> SceneDiff
+
+
+4. src/clipper/ffmpeg_clipper.py
+Class FFmpegClipper:
+  extract(video_path: str, timestamp_sec: float,
+          output_path: str, padding: float = 5.0) -> str
+    ffmpeg.input(video_path, ss=max(0, timestamp_sec-padding), t=padding*2)
+    .output(output_path, vcodec="libx264", acodec="copy")
+    .overwrite_output().run(quiet=True)
+    Return output_path.
+  Catch ffmpeg.Error and log; re-raise.
+
+
+Verify:
+python -c "
+from src.indexer.clip_embedder import CLIPEmbedder
+from src.indexer.qdrant_writer import QdrantWriter
+from src.indexer.event_writer import EventWriter
+from src.clipper.ffmpeg_clipper import FFmpegClipper
+e = CLIPEmbedder()  # will download model ~300MB first run
+print("Indexing layer OK")

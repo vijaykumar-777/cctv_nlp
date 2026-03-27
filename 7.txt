@@ -1,0 +1,90 @@
+Implement NLP query layer and FastAPI app for cctv_intelligence.
+
+
+1. src/query_api/schemas.py
+Pydantic v2 models:
+
+
+ParsedQuery: class_filter(list[str]|None), attribute_filters(dict),
+  camera_ids(list[str]|None), time_range(dict|None),
+  event_type(str="any"), text_query(str), limit(int=10)
+
+
+QueryRequest: query(str), top_k(int=10)
+
+
+EventResponse: event_id(str), camera_id(str), camera_name(str|None),
+  timestamp_utc(datetime), class_name(str), attributes(dict),
+  confidence(float), caption(str|None), clip_url(str|None), score(float)
+
+
+QueryResponse: query_interpreted(ParsedQuery), results(list[EventResponse]),
+  total(int)
+
+
+2. src/query_api/nlp/query_parser.py
+Class QueryParser:
+  __init__: anthropic.Anthropic(api_key=settings.anthropic_api_key)
+  parse(query: str) -> ParsedQuery
+    Call claude-sonnet-4-6 with system prompt:
+    """You parse CCTV search queries into JSON only. No prose, no fences.
+    Return exactly: {"class_filter":["car"]or null,"attribute_filters":
+    {"color":"red"},"camera_ids":["cam_01"]or null,"time_range":
+    {"after":"14:00","before":null}or null,"event_type":"tracking"or
+    "scene_diff"or "any","text_query":"concise visual description","limit":10}
+    event_type is scene_diff only for removal/theft/disappearance queries."""
+    Parse response text as JSON → ParsedQuery.model_validate()
+    On JSON error: return default ParsedQuery(text_query=query)
+
+
+3. src/query_api/nlp/retriever.py
+Class HybridRetriever:
+  __init__(clip_embedder, qdrant_writer)
+  async retrieve(parsed: ParsedQuery, session: AsyncSession)
+                -> list[tuple[Event|SceneDiff, float]]
+  Step A — SQL query:
+    Select from Event (or SceneDiff if event_type=="scene_diff").
+    Apply filters: class_name IN class_filter, camera_id IN camera_ids,
+    timestamp_utc BETWEEN time_range values, attribute_filters via JSON ops.
+    Limit to parsed.limit * 3.
+  Step B — Vector search (if text_query not empty):
+    vec = clip_embedder.embed_text(parsed.text_query)
+    qdrant results = qdrant_writer.search(vec, top_k=parsed.limit*3)
+  Step C — Merge:
+    Score each result: sql_hit=0.5, qdrant_score weighted 0.5.
+    Deduplicate by event_id. Sort by combined score desc.
+    Return top parsed.limit results.
+
+
+4. src/query_api/routers/query.py
+Router with POST /query:
+  Inject: AsyncSession, QueryParser, HybridRetriever (use FastAPI app.state).
+  Parse → retrieve → build QueryResponse.
+  For each result, clip_url = f"/clips/{event.id}" if event.clip_path else None.
+
+
+5. src/query_api/routers/clips.py
+Router with:
+  GET /clips/{event_id}: load event from DB,
+    if not clip_path: extract clip via FFmpegClipper,
+    update event clip_path in DB, return FileResponse.
+  POST /scene-diff/register:
+    Body: {camera_id: str, object_label: str}
+    Load most recent frame from last 10s of video_path (stored in query param),
+    Register baseline, return {status: "registered", camera_id}.
+
+
+6. src/query_api/main.py
+FastAPI app with lifespan:
+  startup: await init_db(), ensure Qdrant collection,
+    load YOLODetector → app.state.detector,
+    load CLIPEmbedder → app.state.embedder,
+    init QdrantWriter → app.state.qdrant,
+    init QueryParser → app.state.parser,
+    init HybridRetriever → app.state.retriever.
+  Include routers. Add CORS middleware (allow all).
+  GET / → {"status":"ok","service":"CCTV Intelligence API"}
+
+
+Verify:
+python -c "from src.query_api.main import app; print('API layer OK')"

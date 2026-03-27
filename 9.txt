@@ -1,0 +1,64 @@
+Write all tests for cctv_intelligence. No mocks of internal logic —
+only mock external APIs (Anthropic, Qdrant, PostgreSQL).
+
+
+1. tests/conftest.py
+Fixtures:
+  sample_frame: 480x640x3 uint8 numpy zeros array
+  red_frame: 480x640x3 uint8 filled with red HSV (hue=0, sat=255, val=255)
+  sample_detection: Detection(bbox=[100,100,200,200], confidence=0.9,
+                    class_id=2, class_name="car")
+  sample_track: Track(track_id=1, bbox=[100,100,200,200],
+                confidence=0.9, class_id=2, class_name="car")
+  async_session: pytest-asyncio fixture using aiosqlite in-memory DB,
+                  creates all tables via Base.metadata.create_all
+
+
+2. tests/test_detector.py
+test_detection_is_list: YOLODetector().detect(sample_frame) returns list
+test_attribute_color_red: AttributeExtractor().extract_color(red_frame,
+  [0,0,640,480]) returns "red"
+test_attribute_size_small: small bbox returns "small"
+
+
+3. tests/test_tracker.py
+test_tracker_empty_input: BoxMOTTracker().update([], black_frame) returns list
+test_tracker_with_detection: update([sample_detection], frame) returns list
+
+
+4. tests/test_scene_diff.py
+test_no_diff_no_baseline:
+  DiffDetector(BaselineManager(tmp_path)).check(...) returns []
+test_removal_detected:
+  Register baseline with [sample_detection].
+  Call check with [] (no current detections).
+  Assert result has 1 SceneDiffEvent with event_type=="removed".
+
+
+5. tests/test_query_parser.py
+Mock anthropic.Anthropic with unittest.mock.patch.
+test_parse_tracking_query:
+  Mock returns JSON: {"class_filter":["car"],"attribute_filters":
+  {"color":"red"},"event_type":"tracking","text_query":"red car","limit":10}
+  QueryParser().parse("find red car") returns ParsedQuery with class_filter==["car"]
+test_parse_scene_diff_query:
+  Mock returns JSON with event_type="scene_diff".
+  Assert result.event_type == "scene_diff"
+test_parse_invalid_json_fallback:
+  Mock returns "not json". Assert returns default ParsedQuery(text_query=query).
+
+
+6. tests/test_retriever.py
+Mock QdrantWriter.search and AsyncSession execute.
+test_sql_filter_class:
+  ParsedQuery with class_filter=["car"]. Verify SQL contains class_name filter.
+test_empty_results_returns_list:
+  Both SQL and Qdrant return empty. retrieve() returns [].
+
+
+Run all tests:
+pytest tests/ -v --tb=short
+
+
+All 10+ tests must pass. Fix any failures before reporting done.
+Do NOT skip or xfail tests — fix the actual issue.

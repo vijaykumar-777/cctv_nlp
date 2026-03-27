@@ -1,0 +1,62 @@
+Final integration check for cctv_intelligence.
+Run each step and report pass/fail. Fix any failures.
+
+
+1. Static checks:
+python -m py_compile src/config.py src/models.py src/database.py
+python -m py_compile src/ingestor/video_reader.py src/ingestor/frame_sampler.py
+python -m py_compile src/detector/yolo_detector.py src/detector/attribute_extractor.py
+python -m py_compile src/tracker/boxmot_tracker.py
+python -m py_compile src/scene_diff/baseline_manager.py src/scene_diff/diff_detector.py
+python -m py_compile src/annotator/event_builder.py
+python -m py_compile src/indexer/clip_embedder.py src/indexer/qdrant_writer.py src/indexer/event_writer.py
+python -m py_compile src/query_api/main.py src/query_api/schemas.py
+python -m py_compile src/query_api/nlp/query_parser.py src/query_api/nlp/retriever.py
+python -m py_compile src/query_api/routers/query.py src/query_api/routers/clips.py
+python -m py_compile src/clipper/ffmpeg_clipper.py src/pipeline.py
+
+
+2. Import chain check:
+python -c "
+from src.config import settings
+from src.models import Camera, Event, SceneDiff
+from src.database import init_db, get_db
+from src.ingestor.frame_sampler import FrameSampler
+from src.detector.yolo_detector import YOLODetector
+from src.detector.attribute_extractor import AttributeExtractor
+from src.tracker.boxmot_tracker import BoxMOTTracker
+from src.scene_diff.baseline_manager import BaselineManager
+from src.scene_diff.diff_detector import DiffDetector
+from src.annotator.event_builder import EventBuilder
+from src.indexer.clip_embedder import CLIPEmbedder
+from src.indexer.qdrant_writer import QdrantWriter
+from src.indexer.event_writer import EventWriter
+from src.clipper.ffmpeg_clipper import FFmpegClipper
+from src.pipeline import CCTVPipeline
+from src.query_api.main import app
+print("ALL IMPORTS OK")
+"
+
+
+3. Run tests:
+pytest tests/ -v --tb=short
+Expected: all pass.
+
+
+4. API smoke test (in-process, no running server needed):
+python -c "
+from fastapi.testclient import TestClient
+from src.query_api.main import app
+client = TestClient(app)
+r = client.get("/")
+assert r.status_code == 200
+print("API smoke test OK:", r.json())
+"
+
+
+5. Generate final file list:
+find . -name "*.py" | sort | grep -v __pycache__ | grep -v .venv
+
+
+Fix ALL failures. Report final status as:
+PHASE 10 COMPLETE — N files, M tests passed, all imports OK

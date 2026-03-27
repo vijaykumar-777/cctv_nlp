@@ -1,0 +1,76 @@
+Implement the main pipeline and CLI scripts for cctv_intelligence.
+
+
+1. src/pipeline.py
+Class CCTVPipeline:
+  __init__(video_path: str, camera_id: str, camera_name: str = ""):
+    Init all components: FrameSampler, YOLODetector, AttributeExtractor,
+    BoxMOTTracker, DiffDetector (with BaselineManager), EventBuilder,
+    CLIPEmbedder, QdrantWriter (call ensure_collection), FFmpegClipper.
+    create_async_engine session factory from settings.
+
+
+  async run() -> dict  # returns {events_written, diffs_written, frames_processed}
+  Main loop:
+    async with AsyncSession as session:
+      for frame_num, ts_sec, frame in sampler:
+        detections = detector.detect(frame)
+        tracks = tracker.update(detections, frame)
+        diffs = diff_detector.check(camera_id, frame, detections,
+                  datetime.utcfromtimestamp(ts_sec), frame_num)
+        for track in tracks:
+          attrs = {
+            "color": attr_extractor.extract_color(frame, track.bbox),
+            "size":  attr_extractor.extract_size(track.bbox, frame.shape)
+          }
+          record = event_builder.build(camera_id, track, attrs,
+                     datetime.utcfromtimestamp(ts_sec), frame_num, frame, video_path)
+          vec = embedder.embed_image(record.frame_crop)
+          event = await event_writer.write_event(session, record, None, None)
+          qdrant.upsert(str(event.id), vec, {
+            "camera_id": camera_id, "class_name": track.class_name,
+            "timestamp_utc": ts_sec, "track_id": track.track_id,
+            "attributes": attrs})
+          await session.execute(update_event_qdrant_id)  # update qdrant_id col
+        for diff in diffs:
+          await event_writer.write_scene_diff(session, diff, None)
+        if frame_num % 100 == 0:
+          log.info("progress", frame=frame_num, tracks=len(tracks))
+        await session.commit() every 50 frames
+      Final commit.
+
+
+2. scripts/ingest_video.py
+#!/usr/bin/env python
+argparse CLI:
+  --video (required), --camera-id (required), --camera-name (default="")
+  --register-baseline (flag): if set, register baseline after first 30 frames
+Calls asyncio.run(CCTVPipeline(args.video, args.camera_id, args.camera_name).run())
+Print summary dict at end.
+
+
+3. README.md — complete setup and usage guide:
+  ## Setup
+  git clone ... && cd cctv_intelligence
+  python3.11 -m venv .venv && source .venv/bin/activate
+  pip install -r requirements.txt (in 5 steps as specified)
+  cp .env.example .env  # fill in ANTHROPIC_API_KEY
+  docker-compose up -d
+  ## Ingest a video
+  python scripts/ingest_video.py --video ./videos/parking.mp4 --camera-id cam_01 --camera-name "Parking North"
+  ## Register a scene baseline (for theft/removal detection)
+  python scripts/ingest_video.py --video ./videos/lobby.mp4 --camera-id cam_02 --register-baseline
+  ## Start the API
+  uvicorn src.query_api.main:app --reload --port 8000
+  ## Example queries
+  curl -X POST http://localhost:8000/query \
+    -H "Content-Type: application/json" \
+    -d '{"query": "find the red car after 2pm", "top_k": 5}'
+  curl -X POST http://localhost:8000/query \
+    -H "Content-Type: application/json" \
+    -d '{"query": "when was the bag removed from the table", "top_k": 3}'
+
+
+Verify:
+python -c "from src.pipeline import CCTVPipeline; print('Pipeline OK')"
+python scripts/ingest_video.py --help
