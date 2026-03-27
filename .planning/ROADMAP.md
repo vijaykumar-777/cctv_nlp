@@ -5,15 +5,15 @@ This milestone focuses on building the end-to-end CCTV Intelligence Platform as 
 
 | Phase | Description | Status |
 |---|---|---|
-| Phase 1 | **Project Scaffold** — Directory structure, requirements.txt, .env.example, docker-compose.yml. | [ ] |
-| Phase 2 | **Install & Setup** — Dependencies, torches, opencv-python, and API packages. | [ ] |
-| Phase 3 | **Database Layer** — SQLAlchemy ORM (models.py), database.py, and initial Alembic migrations. | [ ] |
-| Phase 4 | **Vision Modules** — VideoReader, FrameSampler, YOLODetector, and BoxMOTTracker. | [ ] |
-| Phase 5 | **Scene Diff & Annotation** — BaselineManager, DiffDetector, and EventBuilder. | [ ] |
-| Phase 6 | **Indexing Layer** — CLIPEmbedder, QdrantWriter, and FFmpegClipper. | [ ] |
-| Phase 7 | **NLP Query & API** — QueryParser (Anthropic), HybridRetriever, and FastAPI routes. | [ ] |
-| Phase 8 | **Pipeline & CLI** — CCTVPipeline, ingest_video.py script, and final README. | [ ] |
-| Phase 9 | **Test Suite** — Unit and integration tests for all layers. | [ ] |
+| Phase 1 | **Project Scaffold** — Directory structure, requirements.txt, .env.example, docker-compose.yml. | [x] ✅ |
+| Phase 2 | **Install & Setup** — Dependencies, torches, opencv-python, and API packages. | [x] ✅ |
+| Phase 3 | **Database Layer** — SQLAlchemy ORM (models.py), database.py, and initial Alembic migrations. | [x] ✅ |
+| Phase 4 | **Vision Modules** — VideoReader, FrameSampler, YOLODetector, and BoxMOTTracker. | [x] ✅ |
+| Phase 5 | **Scene Diff & Annotation** — BaselineManager, DiffDetector, and EventBuilder. | [x] ✅ |
+| Phase 6 | **Indexing Layer** — CLIPEmbedder, QdrantWriter, and FFmpegClipper. | [x] ✅ |
+| Phase 7 | **NLP Query & API** — QueryParser (Anthropic), HybridRetriever, and FastAPI routes. | [x] ✅ |
+| Phase 8 | **Pipeline & CLI** — CCTVPipeline, ingest_video.py script, and final README. | [x] ✅ |
+| Phase 9 | **Test Suite** — Unit and integration tests for all layers. | [x] ✅ |
 | Phase 10 | **Final Integration** — Static checks, import chain, and API smoke tests. | [ ] |
 
 ---
