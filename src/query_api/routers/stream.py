@@ -24,6 +24,7 @@ def generate_frames(detector):
     sleep_time = 1.0 / fps
 
     while True:
+        start_time = time.time()
         success, frame = cap.read()
         if not success:
             time.sleep(1.0)
@@ -34,7 +35,7 @@ def generate_frames(detector):
         frame = cv2.resize(frame, (640, 360))
 
         # Run inference using the shared detector from app.state
-        results = detector.model.track(frame, persist=True, verbose=False)
+        results = detector._model.track(frame, persist=True, verbose=False)
         annotated_frame = results[0].plot()
 
         # Add CRT styling or timestamps
@@ -60,8 +61,9 @@ def generate_frames(detector):
             b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n'
         )
         
-        # Don't overload the CPU, keep it at real-time
-        time.sleep(sleep_time)
+        elapsed = time.time() - start_time
+        if elapsed < sleep_time:
+            time.sleep(sleep_time - elapsed)
 
 
 @router.get("/live_feed")

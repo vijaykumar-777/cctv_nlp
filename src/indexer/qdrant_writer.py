@@ -80,14 +80,14 @@ class QdrantWriter:
             ]
             query_filter = Filter(must=conditions)
 
-        results = self._client.search(
+        response = self._client.query_points(
             collection_name=COLLECTION,
-            query_vector=query_vector.tolist(),
+            query=query_vector.tolist(),
             query_filter=query_filter,
             limit=top_k,
         )
 
         return [
             (str(hit.id), hit.score, hit.payload or {})
-            for hit in results
+            for hit in response.points
         ]

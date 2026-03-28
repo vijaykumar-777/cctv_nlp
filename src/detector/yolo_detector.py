@@ -27,7 +27,12 @@ class YOLODetector:
     """
 
     def __init__(self, model_path: str = settings.yolo_model) -> None:
-        self._device = "cuda" if torch.cuda.is_available() else "cpu"
+        if torch.cuda.is_available():
+            self._device = "cuda"
+        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            self._device = "mps"
+        else:
+            self._device = "cpu"
         self._model = YOLO(model_path)
         self._model.to(self._device)
 
